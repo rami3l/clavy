@@ -1,12 +1,16 @@
 import Cocoa
 
-var inputSourceState = [String: String]()
+let inputSourceState = InputSourceState()
 
-func loadInputSource(forApp appID: String) -> String? {
-  // It's a pity that we don't have `.get()` in Swift...
-  return inputSourceState.index(forKey: appID).map { inputSourceState[$0].1 }
-}
+actor InputSourceState {
+  private var state = [String: String]()
 
-func saveInputSource(_ id: String, forApp appID: String) {
-  inputSourceState[appID] = id
+  func load(forApp appID: String) -> String? {
+    // It's a pity that we don't have `.get()` in Swift...
+    return state.index(forKey: appID).map { state[$0].1 }
+  }
+
+  func save(_ id: String, forApp appID: String) {
+    state[appID] = id
+  }
 }

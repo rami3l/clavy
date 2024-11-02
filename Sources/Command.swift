@@ -1,11 +1,12 @@
 import ArgumentParser
 import Cocoa
+import Logging
 
 @main
-struct Command: ParsableCommand {
-  static var version = packageVersion
+struct Command: AsyncParsableCommand {
+  static let version = packageVersion
 
-  static var configuration = CommandConfiguration(
+  static let configuration = CommandConfiguration(
     abstract: "An input source switching daemon for macOS.",
     version: version
   )
@@ -32,9 +33,15 @@ struct Command: ParsableCommand {
 
   @OptionGroup var options: Options
 
-  func run() throws {
+  func run() async throws {
+    var logLevel = Logger.Level.info
     if self.options.verbose {
       logLevel = .debug
+    }
+    LoggingSystem.bootstrap {
+      var handler = StreamLogHandler.standardError(label: $0)
+      handler.logLevel = logLevel
+      return handler
     }
 
     switch self.options.operation {
@@ -50,14 +57,11 @@ struct Command: ParsableCommand {
         return
       }
 
-      // Trigger top-level `let` declarations' initialization.
-      // https://developer.apple.com/swift/blog/?id=7
-      _ = currentInputSourceObserver
-      _ = runningAppsObserver
-      _ = appActivatedObserver
-
       log.info("== Welcome to Claveilleur ==")
-      CFRunLoopRun()
+
+      // Activate the observers.
+      _ = RunningAppsObserver()
+      _ = await (observeCurrentInputSource(), observeAppActivation())
     }
   }
 }

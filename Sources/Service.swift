@@ -1,6 +1,6 @@
 // https://github.com/koekeishiya/skhd/blob/f88e7ad403ebbee1b8bac988d8b162d595f595c4/src/service.h
 import Cocoa
-import LaunchAgent
+@preconcurrency import LaunchAgent
 
 let username = NSUserName()
 let home = FileManager.default.homeDirectoryForCurrentUser
