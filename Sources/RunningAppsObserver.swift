@@ -1,52 +1,31 @@
 import Cocoa
-import Synchronization
+import Combine
 
-actor RunningAppsObserver: NSObject {
-  let currentWorkspace: NSWorkspace
-  private let windowChangeObservers: Mutex<[pid_t: WindowChangeObserver?]>
-  private var rawObserver: NSKeyValueObservation?
+func observeRunningApps(on workspace: NSWorkspace = .shared) async {
+  var windowChangeObservers = Dictionary(
+    uniqueKeysWithValues:
+      getWindowChangePIDs(for: workspace.runningApplications)
+      .map { ($0, try? WindowChangeObserver(pid: $0)) }
+  )
 
-  init(workspace: NSWorkspace = .shared) {
-    currentWorkspace = workspace
+  for await runningApps in workspace.publisher(for: \.runningApplications).values {
+    let oldKeys = Set(windowChangeObservers.keys)
+    let newKeys = getWindowChangePIDs(for: runningApps)
 
-    windowChangeObservers =
-      Mutex(
-        Dictionary(
-          uniqueKeysWithValues:
-            Self.getWindowChangePIDs(for: workspace.runningApplications)
-            .map { ($0, try? WindowChangeObserver(pid: $0)) }
-        )
-      )
-
-    super.init()
-
-    rawObserver = currentWorkspace.observe(\.runningApplications) {
-      _,
-      deltas in
-
-      let oldKeys = Self.getWindowChangePIDs(for: deltas.oldValue!)
-      let newKeys = Self.getWindowChangePIDs(for: deltas.newValue!)
-
-      let toRemove = oldKeys.subtracting(newKeys)
-      if !toRemove.isEmpty {
-        log.debug("RunningAppsObserver: removing from windowChangeObservers: \(toRemove)")
-      }
-
-      let toAdd = newKeys.subtracting(oldKeys)
-      if !toAdd.isEmpty {
-        log.debug("RunningAppsObserver: adding to windowChangeObservers: \(toAdd)")
-      }
-
-      self.windowChangeObservers.withLock { observers in
-        toRemove.forEach { observers.removeValue(forKey: $0) }
-        toAdd.forEach { observers[$0] = try? WindowChangeObserver(pid: $0) }
-      }
+    let toRemove = oldKeys.subtracting(newKeys)
+    if !toRemove.isEmpty {
+      log.debug("\(#function): removing from windowChangeObservers: \(toRemove)")
     }
+    toRemove.forEach { windowChangeObservers.removeValue(forKey: $0) }
+
+    let toAdd = newKeys.subtracting(oldKeys)
+    if !toAdd.isEmpty {
+      log.debug("\(#function): adding to windowChangeObservers: \(toAdd)")
+    }
+    toAdd.forEach { windowChangeObservers[$0] = try? WindowChangeObserver(pid: $0) }
   }
 
-  static func getWindowChangePIDs(
-    for runningApps: [NSRunningApplication]
-  ) -> Set<pid_t> {
+  func getWindowChangePIDs(for runningApps: [NSRunningApplication]) -> Set<pid_t> {
     // https://apple.stackexchange.com/a/317705
     // https://gist.github.com/ljos/3040846
     // https://stackoverflow.com/a/61688877

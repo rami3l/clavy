@@ -16,12 +16,12 @@ func observeCurrentInputSource() async {
   for await inputSource in inputSourcePublisher.values {
     guard let currentApp = getCurrentAppBundleID() else {
       log.warning(
-        "currentInputSourceObserver: failed to get current app bundle ID for notification"
+        "\(#function): failed to get current app bundle ID for notification"
       )
       return
     }
     log.debug(
-      "currentInputSourceObserver: updating input source for `\(currentApp)` to: \(inputSource)"
+      "\(#function): updating input source for `\(currentApp)` to: \(inputSource)"
     )
     await inputSourceState.save(inputSource, forApp: currentApp)
   }
@@ -31,26 +31,24 @@ func observeAppActivation() async {
   let focusedWindowChangedPublisher =
     localNotificationCenter
     .publisher(for: Claveilleur.focusedWindowChangedNotification)
-    .compactMap { getAppBundleID(forPID: $0.object as! pid_t) }
+    .compactMap { n in getAppBundleID(forPID: n.object as! pid_t).map { (n.name, $0) } }
 
-  let didActivateAppPublisher = NSWorkspace
-    .shared
-    .notificationCenter
+  let didActivateAppPublisher = NSWorkspace.shared.notificationCenter
     .publisher(for: NSWorkspace.didActivateApplicationNotification)
-    .compactMap(getAppBundleID(forNotification:))
+    .compactMap { n in getAppBundleID(forNotification: n).map { (n.name, $0) } }
 
   let appHiddenPublisher =
     localNotificationCenter
     .publisher(for: Claveilleur.appHiddenNotification)
-    .compactMap { _ in getCurrentAppBundleID() }
+    .compactMap { n in getCurrentAppBundleID().map { (n.name, $0) } }
 
   let currentAppPublisher =
     focusedWindowChangedPublisher
     .merge(with: didActivateAppPublisher, appHiddenPublisher)
-    .removeDuplicates()
+    .removeDuplicates(by: { $0.1 == $1.1 })
 
-  for await currentApp in currentAppPublisher.values {
-    log.debug("appActivatedObserver: detected activation of app: \(currentApp)")
+  for await (notifName, currentApp) in currentAppPublisher.values {
+    log.debug("\(#function): detected `\(notifName as NSString)` of app: \(currentApp)")
 
     guard
       let oldInputSource = await inputSourceState.load(forApp: currentApp),
@@ -58,7 +56,7 @@ func observeAppActivation() async {
     else {
       let newInputSource = getInputSource()
       log.info(
-        "appActivatedObserver: registering input source for `\(currentApp)` as: \(newInputSource)"
+        "\(#function): registering input source for `\(currentApp)` as: \(newInputSource)"
       )
       await inputSourceState.save(newInputSource, forApp: currentApp)
       return
