@@ -48,7 +48,7 @@ func observeAppActivation() async {
     .removeDuplicates(by: { $0.1 == $1.1 })
 
   for await (notifName, currentApp) in currentAppPublisher.values {
-    log.debug("\(#function): detected `\(notifName as NSString)` of app: \(currentApp)")
+    log.debug("\(#function): detected `\(notifName as NSString)` from: \(currentApp)")
 
     guard
       let oldInputSource = await inputSourceState.load(forApp: currentApp),

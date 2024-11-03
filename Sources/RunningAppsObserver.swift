@@ -1,20 +1,15 @@
 import Cocoa
 import Combine
 
-class RunningAppsObserver: NSObject {
-  @objc let workspace: NSWorkspace
+class RunningAppsObserver {
+  @objc dynamic var workspace: NSWorkspace
 
   init(workspace: NSWorkspace = .shared) {
     self.workspace = workspace
-    super.init()
   }
 
   func start() async {
-    var windowChangeObservers = Dictionary(
-      uniqueKeysWithValues:
-        getWindowChangePIDs(for: workspace.runningApplications)
-        .map { ($0, try? WindowChangeObserver(pid: $0)) }
-    )
+    var windowChangeObservers = [pid_t: WindowChangeObserver?]()
 
     for await runningApps in workspace.publisher(for: \.runningApplications).values {
       let oldKeys = Set(windowChangeObservers.keys)

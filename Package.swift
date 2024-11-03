@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
   name: "Claveilleur",
   platforms: [
-    .macOS(.v15)
+    .macOS(.v12)
   ],
   products: [
     .executable(name: "claveilleur", targets: ["Claveilleur"])
