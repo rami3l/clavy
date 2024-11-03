@@ -60,7 +60,7 @@ struct Command: AsyncParsableCommand {
       log.info("== Welcome to Claveilleur ==")
 
       // Activate the observers.
-      async let runningApps: () = observeRunningApps()
+      async let runningApps: () = RunningAppsObserver().start()
       async let appActivation: () = observeAppActivation()
       async let currentInputSource: () = observeCurrentInputSource()
       _ = await (runningApps, appActivation, currentInputSource)

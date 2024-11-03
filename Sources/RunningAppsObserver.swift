@@ -1,28 +1,37 @@
 import Cocoa
 import Combine
 
-func observeRunningApps(on workspace: NSWorkspace = .shared) async {
-  var windowChangeObservers = Dictionary(
-    uniqueKeysWithValues:
-      getWindowChangePIDs(for: workspace.runningApplications)
-      .map { ($0, try? WindowChangeObserver(pid: $0)) }
-  )
+class RunningAppsObserver: NSObject {
+  @objc let workspace: NSWorkspace
 
-  for await runningApps in workspace.publisher(for: \.runningApplications).values {
-    let oldKeys = Set(windowChangeObservers.keys)
-    let newKeys = getWindowChangePIDs(for: runningApps)
+  init(workspace: NSWorkspace = .shared) {
+    self.workspace = workspace
+    super.init()
+  }
 
-    let toRemove = oldKeys.subtracting(newKeys)
-    if !toRemove.isEmpty {
-      log.debug("\(#function): removing from windowChangeObservers: \(toRemove)")
+  func start() async {
+    var windowChangeObservers = Dictionary(
+      uniqueKeysWithValues:
+        getWindowChangePIDs(for: workspace.runningApplications)
+        .map { ($0, try? WindowChangeObserver(pid: $0)) }
+    )
+
+    for await runningApps in workspace.publisher(for: \.runningApplications).values {
+      let oldKeys = Set(windowChangeObservers.keys)
+      let newKeys = getWindowChangePIDs(for: runningApps)
+
+      let toRemove = oldKeys.subtracting(newKeys)
+      if !toRemove.isEmpty {
+        log.debug("\(#function): removing from windowChangeObservers: \(toRemove)")
+      }
+      toRemove.forEach { windowChangeObservers.removeValue(forKey: $0) }
+
+      let toAdd = newKeys.subtracting(oldKeys)
+      if !toAdd.isEmpty {
+        log.debug("\(#function): adding to windowChangeObservers: \(toAdd)")
+      }
+      toAdd.forEach { windowChangeObservers[$0] = try? WindowChangeObserver(pid: $0) }
     }
-    toRemove.forEach { windowChangeObservers.removeValue(forKey: $0) }
-
-    let toAdd = newKeys.subtracting(oldKeys)
-    if !toAdd.isEmpty {
-      log.debug("\(#function): adding to windowChangeObservers: \(toAdd)")
-    }
-    toAdd.forEach { windowChangeObservers[$0] = try? WindowChangeObserver(pid: $0) }
   }
 
   func getWindowChangePIDs(for runningApps: [NSRunningApplication]) -> Set<pid_t> {
