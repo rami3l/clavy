@@ -11,7 +11,7 @@ class WindowChangeObserver: NSObject {
       kAXFocusedWindowChangedNotification:
         Claveilleur.focusedWindowChangedNotification,
       kAXApplicationHiddenNotification:
-        Claveilleur.appHiddenNotification
+        Claveilleur.appHiddenNotification,
     ] as [CFString: Notification.Name]
 
   let observerCallbackWithInfo: AXObserverCallbackWithInfo = {

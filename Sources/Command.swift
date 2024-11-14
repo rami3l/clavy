@@ -3,7 +3,7 @@ import Cocoa
 import Logging
 
 @main
-struct Command: AsyncParsableCommand {
+struct Command: ParsableCommand {
   static let version = packageVersion
 
   static let configuration = CommandConfiguration(
@@ -33,7 +33,7 @@ struct Command: AsyncParsableCommand {
 
   @OptionGroup var options: Options
 
-  func run() async throws {
+  func run() throws {
     var logLevel = Logger.Level.info
     if self.options.verbose {
       logLevel = .debug
@@ -57,13 +57,16 @@ struct Command: AsyncParsableCommand {
         return
       }
 
-      log.info("== Welcome to Claveilleur ==")
+      Task.detached {
+        // Activate the observers.
+        async let appActivation: () = observeAppActivation()
+        async let currentInputSource: () = observeCurrentInputSource()
+        _ = await (appActivation, currentInputSource)
+      }
 
-      // Activate the observers.
-      async let appActivation: () = observeAppActivation()
-      async let currentInputSource: () = observeCurrentInputSource()
-      async let runningApps: () = RunningAppsObserver().start()
-      _ = await (appActivation, currentInputSource, runningApps)
+      let runningAppsObserver = RunningAppsObserver()
+      log.info("== Welcome to Claveilleur ==")
+      CFRunLoopRun()
     }
   }
 }
