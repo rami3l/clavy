@@ -1,0 +1,23 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test native build
+        run: cargo build --verbose --locked
+      - name: Run simple tests
+        run: cargo test --verbose
+      - name: Run heavy tests
+        run: cargo test --verbose -- --ignored

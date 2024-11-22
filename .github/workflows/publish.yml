@@ -1,0 +1,70 @@
+name: publish
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  create-release:
+    name: Create GitHub release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+      - name: Create release
+        if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref, '-') }}
+
+  publish:
+    name: Publish for ${{ matrix.os }}
+    needs: [create-release]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            alias: darwin_amd64
+            target1: x86_64-apple-darwin
+            alias1: darwin_arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }},${{ matrix.target1 }}
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: |
+          mkdir -p target/gh-artifacts/
+          cargo build --verbose --bin=clavy --release --locked --target=${{ matrix.target }}
+          mv -f target/${{ matrix.target }}/release/ target/gh-artifacts/clavy_${{ matrix.alias }}/
+          echo '======='
+          cargo build --verbose --bin=clavy --release --locked --target=${{ matrix.target1 }}
+          mv -f target/${{ matrix.target1 }}/release/ target/gh-artifacts/clavy_${{ matrix.alias1 }}/
+          echo '======='
+          ls -laR target/gh-artifacts
+
+      # https://goreleaser.com/ci/actions/?h=github+act#usage
+      - name: Publish via GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --verbose ${{ github.event_name == 'push' && contains(github.ref, 'refs/tags/') && '' || '--snapshot --skip=publish' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
