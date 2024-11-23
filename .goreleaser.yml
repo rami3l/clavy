@@ -58,6 +58,9 @@ brews:
     description: An input source switching daemon for macOS.
     license: GPL-3.0-only
 
+    directory: Formula
+    commit_msg_template: "feat(formula): add `{{ .ProjectName }}` {{ .Tag }}"
+
     custom_block: |
       head "https://github.com/rami3l/clavy.git"
 
