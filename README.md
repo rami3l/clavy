@@ -1,6 +1,6 @@
 # clavy
 
-`clavy` (formerly Claveilleur) is a simple input source switching daemon for macOS.
+`clavy` (formerly `claveilleur`) is a simple input source switching daemon for macOS.
 
 Inspired by a native Windows functionality, it can automatically switch the current input source for you according to the current application (rather than the current document).
 
