@@ -8,18 +8,16 @@ Inspired by a native Windows functionality, it can automatically switch the curr
 
 ## Building & Installation
 
-<!--
 ### Installing with `brew`
 
-```sh 
+```sh
 brew install rami3l/tap/clavy
-``` 
--->
+```
 
 ### Building from source
 
 ```sh
-# To live on the bleeding edge, the recommended way is to use `cargo`:
+# Live on the bleeding edge
 cargo install clavy --git=https://github.com/rami3l/clavy.git
 ```
 
