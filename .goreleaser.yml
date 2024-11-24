@@ -21,7 +21,7 @@ builds:
       - arm64
     hooks:
       # Actually override the release binary.
-      post: bash -c 'mv -f target/gh-artifacts/{{ .Name }}_{{ .Os }}_{{ .Arch }}/{{ .Name }} {{ .Path }}'
+      post: bash -c 'mv -f target/gh-artifacts/{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}/{{ .Name }} {{ .Path }}'
 
 universal_binaries:
   - replace: true
