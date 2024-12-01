@@ -1,4 +1,8 @@
-use std::{fs, io::Write, path::Path};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 use tracing::{info, warn};
 
@@ -10,7 +14,10 @@ use crate::{
 pub const ID: &str = "io.github.rami3l.clavy";
 
 #[derive(Debug)]
-pub struct Service(pub launchctl::Service);
+pub struct Service {
+    pub raw: launchctl::Service,
+    pub bin_path: PathBuf,
+}
 
 impl Service {
     pub fn try_new(name: &str) -> Result<Self> {
@@ -20,24 +27,22 @@ impl Service {
         )]
         let home = std::env::home_dir().ok_or(Error::HomeNotSet)?;
         let uid = unsafe { libc::getuid() };
-        Ok(Self(launchctl::Service {
-            domain_target: format!("gui/{uid}"),
-            service_target: format!("gui/{uid}/{name}"),
-            uid: uid.to_string(),
+        Ok(Self {
             bin_path: exe_path().ok_or(Error::FaultyExePath)?,
-            plist_path: format!(
-                "{home}/Library/LaunchAgents/{name}.plist",
-                home = home.display()
-            ),
-            out_log_path: format!("/tmp/{name}_{uid}.out.log"),
-            error_log_path: format!("/tmp/{name}_{uid}.err.log"),
-            name: name.into(),
-        }))
+            raw: launchctl::Service::builder()
+                .name(name)
+                .uid(uid.to_string())
+                .plist_path(format!(
+                    "{home}/Library/LaunchAgents/{name}.plist",
+                    home = home.display()
+                ))
+                .build(),
+        })
     }
 
     #[must_use]
     pub fn plist_path(&self) -> &Path {
-        Path::new(&self.0.plist_path)
+        Path::new(&self.raw.plist_path)
     }
 
     #[must_use]
@@ -93,14 +98,14 @@ impl Service {
             self.install()?;
         }
         info!("starting service...");
-        self.0.start()?;
+        self.raw.start()?;
         info!("service started");
         Ok(())
     }
 
     pub fn stop(&self) -> Result<()> {
         info!("stopping service...");
-        self.0.stop()?;
+        self.raw.stop()?;
         info!("service stopped");
         Ok(())
     }
@@ -114,10 +119,10 @@ impl Service {
     pub fn launchd_plist(&self) -> String {
         format!(
             include_str!("../assets/launchd.plist"),
-            name = self.0.name,
-            bin_path = self.0.bin_path.display(),
-            out_log_path = self.0.out_log_path,
-            error_log_path = self.0.error_log_path,
+            name = self.raw.name,
+            bin_path = self.bin_path.display(),
+            out_log_path = self.raw.out_log_path,
+            error_log_path = self.raw.error_log_path,
         )
     }
 }
