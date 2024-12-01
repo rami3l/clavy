@@ -35,6 +35,7 @@ pub fn exe_path() -> Option<PathBuf> {
 
     #[allow(clippy::cast_possible_truncation)]
     let mut path_buf_size = path_buf.len() as u32;
+    #[allow(clippy::used_underscore_items)]
     let path = unsafe { _NSGetExecutablePath(path_buf.as_mut_ptr(), &mut path_buf_size) == 0 }
         .then(|| CStr::from_bytes_until_nul(&path_buf).ok())??;
     Some(OsStr::from_bytes(path.to_bytes()).into())
