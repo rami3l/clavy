@@ -59,6 +59,10 @@ impl WindowObserver {
     pub const fn pid(&self) -> pid_t {
         self.pid
     }
+    
+    pub const fn elem(&self) -> &AXUIElementRef {
+        &self.elem
+    }
 
     pub fn try_new(pid: pid_t, on_notif: OnNotifFn) -> Result<Pin<Box<Self>>, AccessibilityError> {
         unsafe extern "C" fn callback(

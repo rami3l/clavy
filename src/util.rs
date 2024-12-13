@@ -55,7 +55,7 @@ pub fn has_ax_privileges() -> bool {
     }
 }
 
-fn ax_ui_element_value(elem: AXUIElementRef, key: &str) -> Result<CFTypeRef, AccessibilityError> {
+pub fn ax_ui_element_value(elem: AXUIElementRef, key: &str) -> Result<CFTypeRef, AccessibilityError> {
     let mut val: CFTypeRef = ptr::null_mut();
     AccessibilityError::wrap(unsafe {
         AXUIElementCopyAttributeValue(elem, CFString::new(key).as_concrete_TypeRef(), &mut val)
