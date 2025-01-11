@@ -1,4 +1,4 @@
-use std::{env, str::FromStr, sync::mpsc, thread};
+use std::{env, str::FromStr, sync::mpsc};
 
 use clap::{builder::FalseyValueParser, Parser, Subcommand};
 use clavy::{
@@ -21,6 +21,7 @@ use clavy::{
     },
 };
 use core_foundation::runloop::CFRunLoopRun;
+use dispatch2::{Queue, QueueAttribute};
 use libc::pid_t;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
@@ -121,6 +122,8 @@ fn launch() -> Result<()> {
     let (activation_tx, activation_rx) = mpsc::channel();
     let (input_source_tx, input_source_rx) = mpsc::channel();
 
+    let queue = Queue::new(service::ID, QueueAttribute::Concurrent);
+
     let _workspace_observer = WorkspaceObserver::new();
 
     let _focused_window_observer = NotificationObserver::new(
@@ -174,7 +177,7 @@ fn launch() -> Result<()> {
         )
     };
 
-    let activation_handle = thread::spawn({
+    queue.exec_async({
         let input_source_state = input_source_state.clone();
         move || {
             let mut prev_app = None;
@@ -204,7 +207,7 @@ fn launch() -> Result<()> {
         )
     };
 
-    let input_source_handle = thread::spawn(move || {
+    queue.exec_async(move || {
         let mut prev: Option<String> = None;
         for src in input_source_rx {
             if prev.as_ref() == Some(&src) {
@@ -221,8 +224,5 @@ fn launch() -> Result<()> {
     });
 
     unsafe { CFRunLoopRun() };
-    activation_handle.join().unwrap();
-    input_source_handle.join().unwrap();
-
     Ok(())
 }
