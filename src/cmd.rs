@@ -21,7 +21,7 @@ use clavy::{
     },
 };
 use core_foundation::runloop::CFRunLoopRun;
-use dispatch2::{Queue, QueueAttribute};
+use dispatch2::{GlobalQueueIdentifier, QualityOfServiceClass, Queue, QueueAttribute};
 use libc::pid_t;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
@@ -122,7 +122,13 @@ fn launch() -> Result<()> {
     let (activation_tx, activation_rx) = mpsc::channel();
     let (input_source_tx, input_source_rx) = mpsc::channel();
 
-    let queue = Queue::new(service::ID, QueueAttribute::Concurrent);
+    let queue = Queue::new_with_target(
+        service::ID,
+        QueueAttribute::Concurrent,
+        &Queue::global_queue(GlobalQueueIdentifier::QualityOfService(
+            QualityOfServiceClass::UserInitiated,
+        )),
+    );
 
     let _workspace_observer = WorkspaceObserver::new();
 
