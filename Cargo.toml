@@ -34,6 +34,7 @@ objc2-foundation = { version = "0.2.2", features = [
   "NSString",
   "block2",
 ] }
+smol = "2.0.2"
 thiserror = "2.0.9"
 tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
