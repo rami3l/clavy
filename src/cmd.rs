@@ -1,4 +1,4 @@
-use std::{env, str::FromStr, sync::mpsc, thread};
+use std::{env, str::FromStr};
 
 use clap::{builder::FalseyValueParser, Parser, Subcommand};
 use clavy::{
@@ -25,6 +25,7 @@ use libc::pid_t;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
 use objc2_foundation::{NSDistributedNotificationCenter, NSNumber, NSString};
+use smol::channel;
 use tracing::{debug, info, warn, Level};
 
 use crate::_built::GIT_VERSION;
@@ -118,8 +119,8 @@ fn launch() -> Result<()> {
     info!("Hello from clavy!");
 
     let input_source_state = InputSourceState::new();
-    let (activation_tx, activation_rx) = mpsc::channel();
-    let (input_source_tx, input_source_rx) = mpsc::channel();
+    let (activation_tx, activation_rx) = channel::unbounded();
+    let (input_source_tx, input_source_rx) = channel::unbounded();
 
     let _workspace_observer = WorkspaceObserver::new();
 
@@ -137,7 +138,9 @@ fn launch() -> Result<()> {
                 let Some(bundle_id) = bundle_id_from_pid(pid) else {
                     return;
                 };
-                tx.send((notif.name(), bundle_id.to_string())).unwrap();
+                let tx = tx.clone();
+                let signal = (notif.name(), bundle_id.to_string());
+                smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
             }
         },
     );
@@ -152,7 +155,9 @@ fn launch() -> Result<()> {
                 let Some(bundle_id) = bundle_id_from_current_app() else {
                     return;
                 };
-                tx.send((notif.name(), bundle_id.to_string())).unwrap();
+                let tx = tx.clone();
+                let signal = (notif.name(), bundle_id.to_string());
+                smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
             }
         },
     );
@@ -168,17 +173,19 @@ fn launch() -> Result<()> {
                     let Some(bundle_id) = bundle_id_from_notification(notif) else {
                         return;
                     };
-                    tx.send((notif.name(), bundle_id.to_string())).unwrap();
+                    let tx = tx.clone();
+                    let signal = (notif.name(), bundle_id.to_string());
+                    smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
                 }
             },
         )
     };
 
-    let activation_handle = thread::spawn({
+    smol::spawn({
         let input_source_state = input_source_state.clone();
-        move || {
+        async move {
             let mut prev_app = None;
-            for (notif, curr_app) in activation_rx {
+            while let Ok((notif, curr_app)) = activation_rx.recv().await {
                 if prev_app.as_ref() == Some(&curr_app) {
                     continue;
                 }
@@ -194,19 +201,26 @@ fn launch() -> Result<()> {
                 input_source_state.save(curr_app.to_string(), new_src);
             }
         }
-    });
+    })
+    .detach();
 
     let _curr_input_source_observer = unsafe {
         NotificationObserver::new(
             Retained::cast(NSDistributedNotificationCenter::defaultCenter()),
             &*kTISNotifySelectedKeyboardInputSourceChanged.cast(),
-            move |_| input_source_tx.send(input_source()).unwrap(),
+            move |_| {
+                smol::spawn({
+                    let tx = input_source_tx.clone();
+                    async move { tx.send(input_source()).await.unwrap() }
+                })
+                .detach();
+            },
         )
     };
 
-    let input_source_handle = thread::spawn(move || {
+    smol::spawn(async move {
         let mut prev: Option<String> = None;
-        for src in input_source_rx {
+        while let Ok(src) = input_source_rx.recv().await {
             if prev.as_ref() == Some(&src) {
                 continue;
             }
@@ -218,11 +232,9 @@ fn launch() -> Result<()> {
             debug!("updating input source for `{curr_app}` to `{src}`");
             input_source_state.save(curr_app.to_string(), src);
         }
-    });
+    })
+    .detach();
 
     unsafe { CFRunLoopRun() };
-    activation_handle.join().unwrap();
-    input_source_handle.join().unwrap();
-
     Ok(())
 }
