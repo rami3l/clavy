@@ -134,12 +134,12 @@ fn launch() -> Result<()> {
                 let Some(pid) = notif.object() else {
                     return;
                 };
-                let pid: pid_t = Retained::cast::<NSNumber>(pid).as_i32();
+                let pid: pid_t = Retained::cast_unchecked::<NSNumber>(pid).as_i32();
                 let Some(bundle_id) = bundle_id_from_pid(pid) else {
                     return;
                 };
                 let tx = tx.clone();
-                let signal = (notif.name(), bundle_id.to_string());
+                let signal = (notif.name().to_string(), bundle_id.to_string());
                 smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
             }
         },
@@ -156,7 +156,7 @@ fn launch() -> Result<()> {
                     return;
                 };
                 let tx = tx.clone();
-                let signal = (notif.name(), bundle_id.to_string());
+                let signal = (notif.name().to_string(), bundle_id.to_string());
                 smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
             }
         },
@@ -174,7 +174,7 @@ fn launch() -> Result<()> {
                         return;
                     };
                     let tx = tx.clone();
-                    let signal = (notif.name(), bundle_id.to_string());
+                    let signal = (notif.name().to_string(), bundle_id.to_string());
                     smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
                 }
             },
@@ -198,7 +198,7 @@ fn launch() -> Result<()> {
                 }
                 let new_src = input_source();
                 debug!("registering input source for `{curr_app}` as `{new_src}`");
-                input_source_state.save(curr_app.to_string(), new_src);
+                input_source_state.save(curr_app, new_src);
             }
         }
     })
@@ -206,7 +206,7 @@ fn launch() -> Result<()> {
 
     let _curr_input_source_observer = unsafe {
         NotificationObserver::new(
-            Retained::cast(NSDistributedNotificationCenter::defaultCenter()),
+            Retained::cast_unchecked(NSDistributedNotificationCenter::defaultCenter()),
             &*kTISNotifySelectedKeyboardInputSourceChanged.cast(),
             move |_| {
                 smol::spawn({

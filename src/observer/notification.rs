@@ -24,7 +24,7 @@ impl NotificationObserver {
         update: impl Fn(NonNull<NSNotification>) + Clone + 'static,
     ) -> Self {
         let raw = unsafe {
-            center.addObserverForName_object_queue_usingBlock(
+            Retained::cast_unchecked(center.addObserverForName_object_queue_usingBlock(
                 Some(name),
                 None,
                 None,
@@ -32,7 +32,7 @@ impl NotificationObserver {
                     trace!("received `{}`", notif.as_ref().name());
                     update(notif);
                 }),
-            )
+            ))
         };
         Self { center, raw }
     }
