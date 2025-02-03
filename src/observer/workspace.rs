@@ -3,7 +3,7 @@ use std::{
     ffi::c_void,
     pin::Pin,
     ptr,
-    sync::{LazyLock, Mutex},
+    sync::Mutex,
 };
 
 use accessibility_sys::{kAXApplicationHiddenNotification, kAXFocusedWindowChangedNotification};
@@ -13,10 +13,10 @@ use core_graphics::window::{
 };
 use libc::pid_t;
 use objc2::{
-    declare_class, msg_send_id, mutability,
+    define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::AnyObject,
-    ClassType, DeclaredClass,
+    AllocAnyThread, DeclaredClass,
 };
 use objc2_app_kit::{NSRunningApplication, NSWorkspace};
 use objc2_foundation::{
@@ -36,30 +36,23 @@ pub struct WorkspaceObserverIvars {
     children: Mutex<HashMap<pid_t, Pin<Box<WindowObserver>>>>,
 }
 
-declare_class![
+define_class![
+    #[unsafe(super = NSObject)]
+    #[name = "WorkspaceObserver"]
+    #[ivars = WorkspaceObserverIvars]
     pub struct WorkspaceObserver;
 
-    unsafe impl ClassType for WorkspaceObserver {
-        type Super = NSObject;
-        type Mutability = mutability::InteriorMutable;
-        const NAME: &'static str = "WorkspaceObserver";
-    }
-
-    impl DeclaredClass for WorkspaceObserver {
-        type Ivars = WorkspaceObserverIvars;
-    }
-
-    unsafe impl WorkspaceObserver {
-        #[method_id(init)]
+    impl WorkspaceObserver {
+        #[unsafe(method_id(init))]
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(WorkspaceObserverIvars {
                 workspace: unsafe { NSWorkspace::sharedWorkspace() },
                 children: Mutex::default(),
             });
-            unsafe { msg_send_id![super(this), init] }
+            unsafe { msg_send![super(this), init] }
         }
 
-        #[method(observeValueForKeyPath:ofObject:change:context:)]
+        #[unsafe(method(observeValueForKeyPath:ofObject:change:context:))]
         fn observe_value(
             &self,
             key_path: Option<&NSString>,
@@ -72,13 +65,12 @@ declare_class![
     }
 ];
 
-pub static RUNNING_APPLICATIONS: LazyLock<&'static NSString> =
-    LazyLock::new(|| ns_string!("runningApplications"));
+const RUNNING_APPLICATIONS: &str = "runningApplications";
 
 impl WorkspaceObserver {
     #[must_use]
     pub fn new() -> Retained<Self> {
-        let res: Retained<Self> = unsafe { msg_send_id![Self::alloc(), init] };
+        let res: Retained<Self> = unsafe { msg_send![Self::alloc(), init] };
         res.start();
         res
     }
@@ -89,10 +81,10 @@ impl WorkspaceObserver {
                 .workspace
                 .addObserver_forKeyPath_options_context(
                     self,
-                    *RUNNING_APPLICATIONS,
-                    NSKeyValueObservingOptions::NSKeyValueObservingOptionInitial
-                        | NSKeyValueObservingOptions::NSKeyValueObservingOptionOld
-                        | NSKeyValueObservingOptions::NSKeyValueObservingOptionNew,
+                    ns_string!(RUNNING_APPLICATIONS),
+                    NSKeyValueObservingOptions::Initial
+                        | NSKeyValueObservingOptions::Old
+                        | NSKeyValueObservingOptions::New,
                     ptr::null_mut(),
                 );
         }
@@ -102,7 +94,7 @@ impl WorkspaceObserver {
         unsafe {
             self.ivars().workspace.removeObserver_forKeyPath_context(
                 self,
-                *RUNNING_APPLICATIONS,
+                ns_string!(RUNNING_APPLICATIONS),
                 ptr::null_mut(),
             );
         }
@@ -113,7 +105,8 @@ impl WorkspaceObserver {
         key_path: Option<&NSString>,
         _change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
     ) {
-        if !key_path.is_some_and(|p| unsafe { p.isEqualToString(*RUNNING_APPLICATIONS) }) {
+        if !key_path.is_some_and(|p| unsafe { p.isEqualToString(ns_string!(RUNNING_APPLICATIONS)) })
+        {
             warn!("received an unexpected change from key path `{key_path:?}`");
             return;
         }
@@ -121,7 +114,7 @@ impl WorkspaceObserver {
         let ivars = self.ivars();
 
         let new = unsafe { ivars.workspace.runningApplications() };
-        let new_keys = Self::window_change_pids(&new.to_vec_retained());
+        let new_keys = Self::window_change_pids(&new.to_vec());
 
         let mut children = ivars.children.lock().expect("failed to lock children");
         let old_keys = children.keys().copied().collect::<HashSet<_>>();

@@ -81,7 +81,7 @@ pub fn bundle_id_from_pid(pid: pid_t) -> Option<Retained<NSString>> {
 /// This function could always return `None` for certain notification types.
 pub fn bundle_id_from_notification(notif: &NSNotification) -> Option<Retained<NSString>> {
     unsafe {
-        Retained::cast::<NSRunningApplication>(
+        Retained::cast_unchecked::<NSRunningApplication>(
             notif.userInfo()?.objectForKey(NSWorkspaceApplicationKey)?,
         )
         .bundleIdentifier()
