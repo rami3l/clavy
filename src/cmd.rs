@@ -114,7 +114,7 @@ impl Clavy {
 
 #[allow(clippy::too_many_lines)]
 fn launch() -> Result<()> {
-    const NOTIF_NAME_LVL: tracing::Level = tracing::Level::DEBUG;
+    const NOTIF_NAME_LVL: Level = Level::DEBUG;
     let activation_signal = |notif: &NSNotification, bundle_id: Retained<NSString>| unsafe {
         (
             event_enabled!(NOTIF_NAME_LVL).then(|| notif.name().to_string()),
