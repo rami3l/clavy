@@ -24,9 +24,9 @@ use core_foundation::runloop::CFRunLoopRun;
 use libc::pid_t;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
-use objc2_foundation::{NSDistributedNotificationCenter, NSNumber, NSString};
+use objc2_foundation::{NSDistributedNotificationCenter, NSNotification, NSNumber, NSString};
 use smol::channel;
-use tracing::{debug, info, warn, Level};
+use tracing::{debug, event, event_enabled, info, warn, Level};
 
 use crate::_built::GIT_VERSION;
 
@@ -112,6 +112,14 @@ impl Clavy {
 
 #[allow(clippy::too_many_lines)]
 fn launch() -> Result<()> {
+    const NOTIF_NAME_LVL: tracing::Level = tracing::Level::DEBUG;
+    let activation_signal = |notif: &NSNotification, bundle_id: Retained<NSString>| unsafe {
+        (
+            event_enabled!(NOTIF_NAME_LVL).then(|| notif.name().to_string()),
+            bundle_id.to_string(),
+        )
+    };
+
     if !has_ax_privileges() {
         return Err(Error::AxPrivilegesNotDetected);
     }
@@ -139,7 +147,7 @@ fn launch() -> Result<()> {
                     return;
                 };
                 let tx = tx.clone();
-                let signal = (notif.name().to_string(), bundle_id.to_string());
+                let signal = activation_signal(notif, bundle_id);
                 smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
             }
         },
@@ -156,7 +164,7 @@ fn launch() -> Result<()> {
                     return;
                 };
                 let tx = tx.clone();
-                let signal = (notif.name().to_string(), bundle_id.to_string());
+                let signal = activation_signal(notif, bundle_id);
                 smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
             }
         },
@@ -174,7 +182,7 @@ fn launch() -> Result<()> {
                         return;
                     };
                     let tx = tx.clone();
-                    let signal = (notif.name().to_string(), bundle_id.to_string());
+                    let signal = activation_signal(notif, bundle_id);
                     smol::spawn(async move { tx.send(signal).await.unwrap() }).detach();
                 }
             },
@@ -190,7 +198,12 @@ fn launch() -> Result<()> {
                     continue;
                 }
                 prev_app = Some(curr_app.clone());
-                debug!("detected activation of app `{curr_app}` via `{notif}`");
+                event!(
+                    NOTIF_NAME_LVL,
+                    "detected activation of app `{curr_app}` via `{notif}`",
+                    // Unwrapping is safe here because we only send `Some()` with this level.
+                    notif = notif.unwrap()
+                );
                 if let Some(old_src) = input_source_state.load(&curr_app) {
                     if set_input_source(&old_src) {
                         continue;
