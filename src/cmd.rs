@@ -30,17 +30,19 @@ use tracing::{debug, event, event_enabled, info, warn, Level};
 
 use crate::_built::GIT_VERSION;
 
-fn version() -> &'static str {
-    GIT_VERSION.unwrap_or(clap::crate_version!())
-}
+// TODO: Replace this with `.unwrap_or()` when it's available in `const`.
+const VERSION: &str = match GIT_VERSION {
+    Some(v) => v,
+    None => clap::crate_version!(),
+};
 
 /// The command line options to be collected.
 #[derive(Clone, Debug, Parser)]
 #[command(
-    version = version(),
+    version = VERSION,
     author = clap::crate_authors!(),
     about = clap::crate_description!(),
-    before_help = format!("{} {}", clap::crate_name!(), version()),
+    before_help = format!("{name} {VERSION}", name = clap::crate_name!()),
 )]
 pub struct Clavy {
     #[clap(subcommand)]
