@@ -240,7 +240,7 @@ fn launch() -> Result<()> {
             prev = Some(src.clone());
             let Some(curr_app) = bundle_id_from_current_app() else {
                 warn!("failed to get bundle ID from current app");
-                return;
+                continue;
             };
             debug!("updating input source for `{curr_app}` to `{src}`");
             input_source_state.save(curr_app.to_string(), src);
