@@ -1,6 +1,6 @@
 [package]
 name = "clavy"
-version = "0.1.0-alpha7"
+version = "0.1.0-alpha8"
 license = "GPL-3.0"
 edition = "2021"
 homepage = "https://github.com/rami3l/clavy"
