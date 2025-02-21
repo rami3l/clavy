@@ -1,13 +1,13 @@
 use std::{
-    ffi::{c_int, CStr, OsStr},
+    ffi::{CStr, OsStr, c_int},
     os::unix::ffi::OsStrExt,
     path::PathBuf,
     ptr,
 };
 
 use accessibility_sys::{
-    kAXFocusedApplicationAttribute, kAXTrustedCheckOptionPrompt, AXIsProcessTrustedWithOptions,
-    AXUIElementCopyAttributeValue, AXUIElementCreateSystemWide, AXUIElementGetPid, AXUIElementRef,
+    AXIsProcessTrustedWithOptions, AXUIElementCopyAttributeValue, AXUIElementCreateSystemWide,
+    AXUIElementGetPid, AXUIElementRef, kAXFocusedApplicationAttribute, kAXTrustedCheckOptionPrompt,
 };
 use core_foundation::{
     base::{CFTypeRef, FromVoid, TCFType},

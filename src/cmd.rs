@@ -1,16 +1,16 @@
 use std::{env, str::FromStr};
 
-use clap::{builder::FalseyValueParser, Parser, Subcommand};
+use clap::{Parser, Subcommand, builder::FalseyValueParser};
 use clavy::{
     error::{Error, Result},
     observer::{
         input_source::{
-            input_source, kTISNotifySelectedKeyboardInputSourceChanged, set_input_source,
-            InputSourceState,
+            InputSourceState, input_source, kTISNotifySelectedKeyboardInputSourceChanged,
+            set_input_source,
         },
         notification::{
-            NotificationObserver, APP_HIDDEN_NOTIFICATION, FOCUSED_WINDOW_CHANGED_NOTIFICATION,
-            LOCAL_NOTIFICATION_CENTER,
+            APP_HIDDEN_NOTIFICATION, FOCUSED_WINDOW_CHANGED_NOTIFICATION,
+            LOCAL_NOTIFICATION_CENTER, NotificationObserver,
         },
         workspace::WorkspaceObserver,
     },
@@ -26,7 +26,7 @@ use objc2::rc::Retained;
 use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
 use objc2_foundation::{NSDistributedNotificationCenter, NSNotification, NSNumber, NSString};
 use smol::channel;
-use tracing::{debug, event, event_enabled, info, warn, Level};
+use tracing::{Level, debug, event, event_enabled, info, warn};
 
 use crate::_built::GIT_VERSION;
 
@@ -95,8 +95,12 @@ impl Clavy {
             .init();
 
         if !has_ax_privileges() {
-            warn!("it looks like required accessibility privileges have not been granted yet, and the service might exit immediately on startup...");
-            warn!("to fix this issue, you may need to update your configuration in `System Settings > Privacy & Security > Accessibility`");
+            warn!(
+                "it looks like required accessibility privileges have not been granted yet, and the service might exit immediately on startup..."
+            );
+            warn!(
+                "to fix this issue, you may need to update your configuration in `System Settings > Privacy & Security > Accessibility`"
+            );
         }
 
         match self.subcmd.unwrap_or_default() {

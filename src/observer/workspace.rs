@@ -13,15 +13,14 @@ use core_graphics::window::{
 };
 use libc::pid_t;
 use objc2::{
-    define_class, msg_send,
+    AllocAnyThread, DeclaredClass, define_class, msg_send,
     rc::{Allocated, Retained},
     runtime::AnyObject,
-    AllocAnyThread, DeclaredClass,
 };
 use objc2_app_kit::{NSRunningApplication, NSWorkspace};
 use objc2_foundation::{
-    ns_string, NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotificationName,
-    NSNumber, NSObject, NSObjectNSKeyValueObserverRegistration, NSString,
+    NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotificationName, NSNumber,
+    NSObject, NSObjectNSKeyValueObserverRegistration, NSString, ns_string,
 };
 use tracing::{debug, trace, warn};
 

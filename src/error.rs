@@ -32,7 +32,9 @@ pub enum AccessibilityError {
     CannotComplete(i32),
     #[error("a system error occurred, such as the failure to allocate an object")]
     Failure(i32),
-    #[error("the value received in this event is an invalid value for this attribute, or there are invalid parameters in parameterized attributes")]
+    #[error(
+        "the value received in this event is an invalid value for this attribute, or there are invalid parameters in parameterized attributes"
+    )]
     IllegalArgument(i32),
     #[error("the accessibility object received in this event is invalid")]
     InvalidUIElement(i32),
@@ -42,7 +44,9 @@ pub enum AccessibilityError {
     NoValue(i32),
     #[error("not enough precision")]
     NotEnoughPrecision(i32),
-    #[error("the function or method is not implemented, or this process does not support the accessibility API")]
+    #[error(
+        "the function or method is not implemented, or this process does not support the accessibility API"
+    )]
     NotImplemented(i32),
     #[error("this notification has already been registered for")]
     NotificationAlreadyRegistered(i32),
