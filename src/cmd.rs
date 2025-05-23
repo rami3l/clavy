@@ -51,6 +51,10 @@ pub struct Clavy {
     /// Do not use colors in output.
     #[clap(long, env, value_parser = FalseyValueParser::new())]
     no_color: bool,
+
+    /// Comma-separated list of bundle IDs to detect popup windows from.
+    #[clap(long, env = "CLAVY_DETECT_POPUP", value_delimiter = ',')]
+    detect_popup: Vec<String>,
 }
 
 #[derive(Default, Copy, Clone, Debug, Subcommand)]
@@ -80,10 +84,6 @@ pub enum Subcmd {
 
 impl Clavy {
     pub(crate) fn dispatch(&self) -> Result<()> {
-        fn service() -> Result<Service, Error> {
-            Service::try_new(service::ID)
-        }
-
         tracing_subscriber::fmt()
             .compact()
             .with_ansi(!self.no_color)
@@ -103,8 +103,11 @@ impl Clavy {
             );
         }
 
+        let detect_popup = &self.detect_popup;
+        let service = || Service::try_new(service::ID, detect_popup);
+
         match self.subcmd.unwrap_or_default() {
-            Subcmd::Launch => launch()?,
+            Subcmd::Launch => launch(detect_popup)?,
             Subcmd::Install => service()?.install()?,
             Subcmd::Uninstall => service()?.uninstall()?,
             Subcmd::Reinstall => service()?.reinstall()?,
@@ -117,7 +120,7 @@ impl Clavy {
 }
 
 #[allow(clippy::too_many_lines)]
-fn launch() -> Result<()> {
+fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()> {
     const NOTIF_NAME_LVL: Level = Level::DEBUG;
     let activation_signal = |notif: &NSNotification, bundle_id: Retained<NSString>| unsafe {
         (
@@ -136,7 +139,7 @@ fn launch() -> Result<()> {
     let (activation_tx, activation_rx) = channel::unbounded();
     let (input_source_tx, input_source_rx) = channel::unbounded();
 
-    let _workspace_observer = WorkspaceObserver::new([]);
+    let _workspace_observer = WorkspaceObserver::new(detect_popup);
 
     let _focused_window_observer = NotificationObserver::new(
         LOCAL_NOTIFICATION_CENTER.clone(),
