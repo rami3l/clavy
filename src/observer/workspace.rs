@@ -3,7 +3,7 @@ use std::{
     ffi::c_void,
     pin::Pin,
     ptr,
-    sync::Mutex,
+    sync::{Mutex, OnceLock},
 };
 
 use accessibility_sys::{kAXApplicationHiddenNotification, kAXFocusedWindowChangedNotification};
@@ -33,6 +33,7 @@ use crate::observer::notification::{
 pub struct WorkspaceObserverIvars {
     workspace: Retained<NSWorkspace>,
     children: Mutex<HashMap<pid_t, Pin<Box<WindowObserver>>>>,
+    allowed_app_ids: OnceLock<HashSet<String>>,
 }
 
 define_class![
@@ -47,6 +48,7 @@ define_class![
             let this = this.set_ivars(WorkspaceObserverIvars {
                 workspace: unsafe { NSWorkspace::sharedWorkspace() },
                 children: Mutex::default(),
+                allowed_app_ids: OnceLock::default(),
             });
             unsafe { msg_send![super(this), init] }
         }
@@ -67,9 +69,47 @@ define_class![
 const RUNNING_APPLICATIONS: &str = "runningApplications";
 
 impl WorkspaceObserver {
+    /// Creating `AXObserver` for some system apps is simply impossible.
+    const EXCLUDED_APP_IDS: [&str; 4] = [
+        "com.apple.dock",
+        "com.apple.universalcontrol",
+        // HACK: When hiding some system apps, `AXApplicationHidden` is not sent.
+        // We exclude these apps from the observation for now.
+        // See: https://github.com/rami3l/clavy/issues/3
+        "com.apple.controlcenter",
+        "com.apple.notificationcenterui",
+    ];
+    /// A list of known Spotlight-like apps that only show a popup window.
+    /// See: <https://github.com/runjuu/InputSourcePro/blob/3ce832f1fb3b96a8cd6619b5868d55be38c5ca9f/Input%20Source%20Pro/Utilities/AppKit/NSApplication.swift#L5-L23>
+    const KNOWN_POPUP_ONLY_APP_IDS: [&str; 12] = [
+        "com.apple.Spotlight",
+        "com.runningwithcrayons.Alfred",
+        "at.obdev.LaunchBar",
+        "com.raycast.macos",
+        "com.googlecode.iterm2",
+        "com.xunyong.hapigo",
+        "com.hezongyidev.Bob",
+        "com.ripperhe.Bob",
+        "org.yuanli.utools",
+        "com.1password.1password",
+        "com.eusoft.eudic.LightPeek",
+        "com.contextsformac.Contexts",
+    ];
+
     #[must_use]
-    pub fn new() -> Retained<Self> {
+    pub fn new<S: AsRef<str>>(allowed_app_ids: impl IntoIterator<Item = S>) -> Retained<Self> {
         let res: Retained<Self> = unsafe { msg_send![Self::alloc(), init] };
+        let mut allowed_app_ids: HashSet<_> = allowed_app_ids
+            .into_iter()
+            .map(|s| s.as_ref().to_owned())
+            .collect();
+        for id in Self::KNOWN_POPUP_ONLY_APP_IDS {
+            allowed_app_ids.insert(id.to_owned());
+        }
+        for id in Self::EXCLUDED_APP_IDS {
+            allowed_app_ids.remove(id);
+        }
+        res.ivars().allowed_app_ids.set(allowed_app_ids).unwrap();
         res.start();
         res
     }
@@ -113,7 +153,7 @@ impl WorkspaceObserver {
         let ivars = self.ivars();
 
         let new = unsafe { ivars.workspace.runningApplications() };
-        let new_keys = Self::window_change_pids(&new.to_vec());
+        let new_keys = self.window_change_pids(&new.to_vec());
 
         let mut children = ivars.children.lock().expect("failed to lock children");
         let old_keys = children.keys().copied().collect::<HashSet<_>>();
@@ -157,7 +197,10 @@ impl WorkspaceObserver {
         drop(children);
     }
 
-    fn window_change_pids(running_apps: &[Retained<NSRunningApplication>]) -> HashSet<pid_t> {
+    fn window_change_pids(
+        &self,
+        running_apps: &[Retained<NSRunningApplication>],
+    ) -> HashSet<pid_t> {
         // https://apple.stackexchange.com/a/317705
         // https://gist.github.com/ljos/3040846
         // https://stackoverflow.com/a/61688877
@@ -172,30 +215,18 @@ impl WorkspaceObserver {
             })
             .collect();
 
-        let excluded_app_ids = [
-            // Creating `AXObserver` for some system apps is simply impossible.
-            "com.apple.dock",
-            "com.apple.universalcontrol",
-            // HACK: When hiding some system apps, `AXApplicationHidden` is not sent.
-            // We exclude these apps from the observation for now.
-            // See: https://github.com/rami3l/clavy/issues/3
-            "com.apple.controlcenter",
-            "com.apple.notificationcenterui",
-        ]
-        .map(NSString::from_str);
-
         running_apps
             .iter()
-            .filter_map(|app| unsafe {
-                app.bundleIdentifier()
-                    .and_then(|nss| {
-                        excluded_app_ids
-                            .iter()
-                            .find(|aid| aid.isEqualToString(&nss))
-                    })
-                    .is_none()
-                    .then(|| app.processIdentifier())
+            .filter(|&app| {
+                unsafe { app.bundleIdentifier() }.is_some_and(|nss| {
+                    self.ivars()
+                        .allowed_app_ids
+                        .get()
+                        .unwrap()
+                        .contains(&nss.to_string())
+                })
             })
+            .map(|app| unsafe { app.processIdentifier() })
             .filter(|pid| windowed_pids.contains(pid))
             .collect()
     }
