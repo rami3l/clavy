@@ -21,6 +21,8 @@
     <dict>
       <key>NO_COLOR</key>
       <string>1</string>
+      <key>CLAVY_DETECT_POPUP</key>
+      <string>{detect_popup}</string>
     </dict>
     <key>RunAtLoad</key>
     <true />

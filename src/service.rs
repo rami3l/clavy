@@ -17,18 +17,20 @@ pub const ID: &str = "io.github.rami3l.clavy";
 pub struct Service {
     pub raw: launchctl::Service,
     pub bin_path: PathBuf,
+    pub detect_popup: String,
 }
 
 impl Service {
-    pub fn try_new(name: &str) -> Result<Self> {
-        #[allow(
-            deprecated,
-            reason = "irrelevant deprecation of `home_dir()` due to incorrect behavior on Windows"
-        )]
+    pub fn try_new<S: AsRef<str>>(
+        name: &str,
+        detect_popup: impl IntoIterator<Item = S>,
+    ) -> Result<Self> {
         let home = std::env::home_dir().ok_or(Error::HomeNotSet)?;
         let uid = unsafe { libc::getuid() };
+
         Ok(Self {
             bin_path: exe_path().ok_or(Error::FaultyExePath)?,
+            detect_popup: join(detect_popup, ","),
             raw: launchctl::Service::builder()
                 .name(name)
                 .uid(uid.to_string())
@@ -123,6 +125,28 @@ impl Service {
             bin_path = self.bin_path.display(),
             out_log_path = self.raw.out_log_path,
             error_log_path = self.raw.error_log_path,
+            detect_popup = self.detect_popup,
         )
+    }
+}
+
+fn join<S: AsRef<str>>(ss: impl IntoIterator<Item = S>, sep: &str) -> String {
+    let mut res = String::new();
+    for (i, s) in ss.into_iter().enumerate() {
+        if i != 0 {
+            res.push_str(sep);
+        }
+        res.push_str(s.as_ref());
+    }
+    res
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_join() {
+        assert_eq!(join(["foo", "baar", "bz", "", "5"], ","), "foo,baar,bz,,5");
     }
 }
