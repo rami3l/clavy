@@ -136,7 +136,7 @@ fn launch() -> Result<()> {
     let (activation_tx, activation_rx) = channel::unbounded();
     let (input_source_tx, input_source_rx) = channel::unbounded();
 
-    let _workspace_observer = WorkspaceObserver::new();
+    let _workspace_observer = WorkspaceObserver::new([]);
 
     let _focused_window_observer = NotificationObserver::new(
         LOCAL_NOTIFICATION_CENTER.clone(),
