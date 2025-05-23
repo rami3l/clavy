@@ -111,7 +111,7 @@ impl Clavy {
             Subcmd::Start => service()?.start()?,
             Subcmd::Stop => service()?.stop()?,
             Subcmd::Restart => service()?.restart()?,
-        };
+        }
         Ok(())
     }
 }

@@ -76,7 +76,7 @@ impl TryFrom<AXError> for AccessibilityError {
         use accessibility_sys::*;
         if e == kAXErrorSuccess {
             return Err(());
-        };
+        }
 
         Ok(match e {
             kAXErrorAPIDisabled => Self::APIDisabled(e),
