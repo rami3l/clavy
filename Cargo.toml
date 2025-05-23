@@ -40,7 +40,7 @@ tracing = "0.1.41"
 tracing-subscriber = "0.3.19"
 
 [build-dependencies]
-built = { version = "0.7.7", features = ["git2"] }
+built = { version = "0.8.0", features = ["git2"] }
 
 [lints.rust]
 rust_2018_idioms = { level = "deny", priority = -1 }
