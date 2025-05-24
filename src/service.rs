@@ -1,5 +1,5 @@
 use std::{
-    fs,
+    env, fs,
     io::Write,
     path::{Path, PathBuf},
 };
@@ -25,18 +25,15 @@ impl Service {
         name: &str,
         detect_popup: impl IntoIterator<Item = S>,
     ) -> Result<Self> {
-        let home = std::env::home_dir().ok_or(Error::HomeNotSet)?;
-        let uid = unsafe { libc::getuid() };
-
         Ok(Self {
             bin_path: exe_path().ok_or(Error::FaultyExePath)?,
             detect_popup: join(detect_popup, ","),
             raw: launchctl::Service::builder()
                 .name(name)
-                .uid(uid.to_string())
+                .uid(unsafe { libc::getuid() }.to_string())
                 .plist_path(format!(
                     "{home}/Library/LaunchAgents/{name}.plist",
-                    home = home.display()
+                    home = env::home_dir().ok_or(Error::HomeNotSet)?.display()
                 ))
                 .build(),
         })
