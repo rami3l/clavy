@@ -11,9 +11,9 @@ readme = "README.md"
 [dependencies]
 accessibility-sys = "0.2.0"
 block2 = "0.6.1"
-clap = { version = "4.5.37", features = ["cargo", "derive", "env"] }
-core-foundation = "0.10.0"
-core-graphics = "0.24.0"
+clap = { version = "4.5.39", features = ["cargo", "derive", "env"] }
+core-foundation = "0.10.1"
+core-graphics = "0.25.0"
 embed_plist = "1.2.2"
 launchctl = "0.3.2"
 libc = "0.2.172"
