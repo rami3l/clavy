@@ -213,10 +213,10 @@ fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()
                     // Unwrapping is safe here because we only send `Some()` with this level.
                     notif = notif.unwrap()
                 );
-                if let Some(old_src) = input_source_state.load(&curr_app) {
-                    if set_input_source(&old_src) {
-                        continue;
-                    }
+                if let Some(old_src) = input_source_state.load(&curr_app)
+                    && set_input_source(&old_src)
+                {
+                    continue;
                 }
                 let new_src = input_source();
                 debug!("registering input source for `{curr_app}` as `{new_src}`");

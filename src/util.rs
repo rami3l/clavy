@@ -36,7 +36,7 @@ pub fn exe_path() -> Option<PathBuf> {
     #[allow(clippy::cast_possible_truncation)]
     let mut path_buf_size = path_buf.len() as u32;
     #[allow(clippy::used_underscore_items)]
-    let path = unsafe { _NSGetExecutablePath(path_buf.as_mut_ptr(), &mut path_buf_size) == 0 }
+    let path = unsafe { _NSGetExecutablePath(path_buf.as_mut_ptr(), &raw mut path_buf_size) == 0 }
         .then(|| CStr::from_bytes_until_nul(&path_buf).ok())??;
     Some(OsStr::from_bytes(path.to_bytes()).into())
 }
@@ -58,7 +58,7 @@ pub fn has_ax_privileges() -> bool {
 fn ax_ui_element_value(elem: AXUIElementRef, key: &str) -> Result<CFTypeRef, AccessibilityError> {
     let mut val: CFTypeRef = ptr::null_mut();
     AccessibilityError::wrap(unsafe {
-        AXUIElementCopyAttributeValue(elem, CFString::new(key).as_concrete_TypeRef(), &mut val)
+        AXUIElementCopyAttributeValue(elem, CFString::new(key).as_concrete_TypeRef(), &raw mut val)
     })?;
     Ok(val)
 }
@@ -97,7 +97,7 @@ pub fn pid_from_current_app() -> Result<pid_t, AccessibilityError> {
         )?;
         let curr = curr as AXUIElementRef;
         let mut pid = 0;
-        AccessibilityError::wrap(AXUIElementGetPid(curr, &mut pid))?;
+        AccessibilityError::wrap(AXUIElementGetPid(curr, &raw mut pid))?;
         Ok(pid)
     }
 }
