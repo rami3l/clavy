@@ -79,7 +79,7 @@ impl WindowObserver {
 
         let mut raw = ptr::null_mut();
         unsafe {
-            AccessibilityError::wrap(AXObserverCreate(pid, callback, &mut raw))?;
+            AccessibilityError::wrap(AXObserverCreate(pid, callback, &raw mut raw))?;
         }
         Ok(Box::pin(Self {
             pid,
