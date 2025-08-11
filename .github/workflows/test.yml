@@ -13,7 +13,7 @@ jobs:
   macos-test:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - name: Test native build
         run: cargo build --verbose --locked
