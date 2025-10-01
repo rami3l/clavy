@@ -30,9 +30,9 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
-            alias: darwin_amd64
+            alias: darwin_arm64
             target1: x86_64-apple-darwin
-            alias1: darwin_arm64
+            alias1: darwin_amd64
     steps:
       - uses: actions/checkout@v5
 
