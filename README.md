@@ -2,9 +2,19 @@
 
 `clavy` (formerly `claveilleur`) is a simple input source switching daemon for macOS.
 
-Inspired by a native Windows functionality, it can automatically switch the current input source for you according to the current application (rather than the current document).
+## About
 
-**WARNING**: This is still a work in progress. Use it with care!
+Inspired by a native Windows functionality, `clavy` can automatically switch the current input source for you according to the current application (rather than the current document).
+
+This is especially useful for polyglot users who often need to switch between languages depending on the application they are using
+(e.g. using English for coding in VSCode and Chinese for writing emails in Safari).
+
+![clavy in action](images/demo.gif)
+
+## Status
+
+The author of this project has been daily-driving the daemon since 2023.
+Thus, it can be considered ready for everyday use.
 
 ## Building & Installation
 
