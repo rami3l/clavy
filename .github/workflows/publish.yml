@@ -13,7 +13,7 @@ jobs:
     name: Create GitHub release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
       - name: Create release
         if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
@@ -34,7 +34,7 @@ jobs:
             target1: x86_64-apple-darwin
             alias1: darwin_amd64
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Go
         uses: actions/setup-go@v6
