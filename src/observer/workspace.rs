@@ -7,10 +7,6 @@ use std::{
 };
 
 use accessibility_sys::{kAXApplicationHiddenNotification, kAXFocusedWindowChangedNotification};
-use core_foundation::{base::FromVoid, dictionary::CFDictionary, number::CFNumber};
-use core_graphics::window::{
-    copy_window_info, kCGNullWindowID, kCGWindowListOptionAll, kCGWindowOwnerPID,
-};
 use libc::pid_t;
 use objc2::{
     AllocAnyThread, DeclaredClass, define_class, msg_send,
@@ -18,6 +14,10 @@ use objc2::{
     runtime::AnyObject,
 };
 use objc2_app_kit::{NSRunningApplication, NSWorkspace};
+use objc2_core_foundation::{CFArray, CFDictionary, CFNumber};
+use objc2_core_graphics::{
+    CGWindowListCopyWindowInfo, CGWindowListOption, kCGNullWindowID, kCGWindowOwnerPID,
+};
 use objc2_foundation::{
     NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotificationName, NSNumber,
     NSObject, NSObjectNSKeyValueObserverRegistration, NSString, ns_string,
@@ -203,15 +203,13 @@ impl WorkspaceObserver {
         // https://apple.stackexchange.com/a/317705
         // https://gist.github.com/ljos/3040846
         // https://stackoverflow.com/a/61688877
-        let window_info = copy_window_info(kCGWindowListOptionAll, kCGNullWindowID)
-            .expect("failed to copy window info");
+        let window_info: Retained<CFArray<CFDictionary<_, CFNumber>>> =
+            CGWindowListCopyWindowInfo(CGWindowListOption::all(), kCGNullWindowID)
+                .expect("failed to copy window info");
 
         let windowed_pids: HashSet<pid_t> = window_info
             .iter()
-            .filter_map(|d| unsafe {
-                let d = CFDictionary::from_void(*d);
-                CFNumber::from_void(*d.find(kCGWindowOwnerPID)?).to_i32()
-            })
+            .filter_map(|d| Some(d.get(unsafe { kCGWindowOwnerPID })?.as_i32()))
             .collect();
 
         running_apps

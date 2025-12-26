@@ -12,8 +12,6 @@ readme = "README.md"
 accessibility-sys = "0.2.0"
 block2 = "0.6.2"
 clap = { version = "4.5.53", features = ["cargo", "derive", "env"] }
-core-foundation = "0.10.1"
-core-graphics = "0.25.0"
 embed_plist = "1.2.2"
 launchctl = "0.3.2"
 libc = "0.2.177"
@@ -22,6 +20,10 @@ objc2-app-kit = { version = "0.3.2", features = [
   "libc",
   "NSRunningApplication",
   "NSWorkspace",
+] }
+objc2-core-foundation = "0.3.2"
+objc2-core-graphics = { version = "0.3.2", default-features = false, features = [
+  "CGWindow",
 ] }
 objc2-foundation = { version = "0.3.0", features = [
   "NSDictionary",
