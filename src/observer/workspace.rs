@@ -46,7 +46,7 @@ define_class![
         #[unsafe(method_id(init))]
         fn init(this: Allocated<Self>) -> Option<Retained<Self>> {
             let this = this.set_ivars(WorkspaceObserverIvars {
-                workspace: unsafe { NSWorkspace::sharedWorkspace() },
+                workspace: NSWorkspace::sharedWorkspace(),
                 children: Mutex::default(),
                 allowed_app_ids: OnceLock::default(),
             });
@@ -144,15 +144,14 @@ impl WorkspaceObserver {
         key_path: Option<&NSString>,
         _change: Option<&NSDictionary<NSKeyValueChangeKey, AnyObject>>,
     ) {
-        if !key_path.is_some_and(|p| unsafe { p.isEqualToString(ns_string!(RUNNING_APPLICATIONS)) })
-        {
+        if !key_path.is_some_and(|p| p.isEqualToString(ns_string!(RUNNING_APPLICATIONS))) {
             warn!("received an unexpected change from key path `{key_path:?}`");
             return;
         }
 
         let ivars = self.ivars();
 
-        let new = unsafe { ivars.workspace.runningApplications() };
+        let new = ivars.workspace.runningApplications();
         let new_keys = self.window_change_pids(&new.to_vec());
 
         let mut children = ivars.children.lock().expect("failed to lock children");
@@ -218,7 +217,7 @@ impl WorkspaceObserver {
         running_apps
             .iter()
             .filter(|&app| {
-                unsafe { app.bundleIdentifier() }.is_some_and(|nss| {
+                app.bundleIdentifier().is_some_and(|nss| {
                     self.ivars()
                         .allowed_app_ids
                         .get()
@@ -226,7 +225,7 @@ impl WorkspaceObserver {
                         .contains(&nss.to_string())
                 })
             })
-            .map(|app| unsafe { app.processIdentifier() })
+            .map(|app| app.processIdentifier())
             .filter(|pid| windowed_pids.contains(pid))
             .collect()
     }

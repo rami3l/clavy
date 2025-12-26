@@ -66,12 +66,10 @@ fn ax_ui_element_value(elem: AXUIElementRef, key: &str) -> Result<CFTypeRef, Acc
 /// Converts a running application's PID to its Bundle ID.
 #[must_use]
 pub fn bundle_id_from_pid(pid: pid_t) -> Option<Retained<NSString>> {
-    unsafe {
-        NSWorkspace::sharedWorkspace()
-            .runningApplications()
-            .iter()
-            .find_map(|app| (app.processIdentifier() == pid).then(|| app.bundleIdentifier())?)
-    }
+    NSWorkspace::sharedWorkspace()
+        .runningApplications()
+        .iter()
+        .find_map(|app| (app.processIdentifier() == pid).then(|| app.bundleIdentifier())?)
 }
 
 /// Returns the PID of the frontmost application from a notification
@@ -110,11 +108,9 @@ pub fn pid_from_current_app() -> Result<pid_t, AccessibilityError> {
 /// are ignored by this API.
 #[must_use]
 pub fn bundle_id_from_frontmost_app() -> Option<Retained<NSString>> {
-    unsafe {
-        NSWorkspace::sharedWorkspace()
-            .frontmostApplication()?
-            .bundleIdentifier()
-    }
+    NSWorkspace::sharedWorkspace()
+        .frontmostApplication()?
+        .bundleIdentifier()
 }
 
 /// Returns the Bundle ID of the currently focused application.
