@@ -122,7 +122,7 @@ impl Clavy {
 #[allow(clippy::too_many_lines)]
 fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()> {
     const NOTIF_NAME_LVL: Level = Level::DEBUG;
-    let activation_signal = |notif: &NSNotification, bundle_id: Retained<NSString>| unsafe {
+    let activation_signal = |notif: &NSNotification, bundle_id: Retained<NSString>| {
         (
             event_enabled!(NOTIF_NAME_LVL).then(|| notif.name().to_string()),
             bundle_id.to_string(),

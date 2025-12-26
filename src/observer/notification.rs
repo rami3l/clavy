@@ -6,7 +6,7 @@ use objc2_foundation::{NSNotification, NSNotificationCenter, NSNotificationName,
 use tracing::trace;
 
 pub static LOCAL_NOTIFICATION_CENTER: LazyLock<Retained<NSNotificationCenter>> =
-    LazyLock::new(|| unsafe { NSNotificationCenter::new() });
+    LazyLock::new(NSNotificationCenter::new);
 
 pub const FOCUSED_WINDOW_CHANGED_NOTIFICATION: &str = "ClavyFocusedWindowsChangedNotification";
 pub const APP_HIDDEN_NOTIFICATION: &str = "ClavyAppHiddenNotification";
