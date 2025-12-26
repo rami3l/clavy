@@ -203,13 +203,14 @@ impl WorkspaceObserver {
         // https://apple.stackexchange.com/a/317705
         // https://gist.github.com/ljos/3040846
         // https://stackoverflow.com/a/61688877
-        let window_info: Retained<CFArray<CFDictionary<_, CFNumber>>> =
-            CGWindowListCopyWindowInfo(CGWindowListOption::all(), kCGNullWindowID)
-                .expect("failed to copy window info");
+        let window_info = CGWindowListCopyWindowInfo(CGWindowListOption::all(), kCGNullWindowID)
+            .expect("failed to copy window info");
+        let window_info: &CFArray<CFDictionary<_, CFNumber>> =
+            unsafe { window_info.cast_unchecked() };
 
         let windowed_pids: HashSet<pid_t> = window_info
             .iter()
-            .filter_map(|d| Some(d.get(unsafe { kCGWindowOwnerPID })?.as_i32()))
+            .filter_map(|d| Some(d.get(unsafe { kCGWindowOwnerPID })?.as_i32()?))
             .collect();
 
         running_apps

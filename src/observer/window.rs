@@ -12,12 +12,8 @@ use accessibility_sys::{
     AXObserverAddNotification, AXObserverCreate, AXObserverGetRunLoopSource, AXObserverRef,
     AXObserverRemoveNotification, AXUIElementCreateApplication, AXUIElementRef,
 };
-use core_foundation::{
-    base::{CFRelease, TCFType, ToVoid},
-    runloop,
-    string::{CFString, CFStringRef},
-};
 use libc::pid_t;
+use objc2_core_foundation::{CFString, Type};
 use tracing::debug;
 
 use crate::error::AccessibilityError;
@@ -48,12 +44,6 @@ impl fmt::Debug for WindowObserver {
     }
 }
 
-unsafe impl ToVoid<Self> for WindowObserver {
-    fn to_void(&self) -> *const c_void {
-        ptr::from_ref(self).cast()
-    }
-}
-
 impl WindowObserver {
     #[must_use]
     pub const fn pid(&self) -> pid_t {
@@ -64,15 +54,18 @@ impl WindowObserver {
         unsafe extern "C" fn callback(
             _: AXObserverRef,
             _: AXUIElementRef,
-            notif: CFStringRef,
+            notif: *mut CFString,
             refcon: *mut c_void,
         ) {
             let Some(self_) = NonNull::new(refcon.cast()) else {
                 return;
             };
+            let Some(notif) = NonNull::new(notif) else {
+                return;
+            };
             let self_: &WindowObserver = unsafe { self_.as_ref() };
             let pid = self_.pid();
-            let notif = unsafe { CFString::wrap_under_get_rule(notif) };
+            let notif = unsafe { CFString::retain(notif.as_ref()) };
             debug!("received `{notif}` from PID {pid}");
             (self_.on_notif)(self_, Cow::from(&notif));
         }

@@ -1,18 +1,13 @@
 use std::{
+    cell::UnsafeCell,
     collections::HashMap,
-    ffi::c_void,
+    marker::{PhantomData, PhantomPinned},
+    ptr::NonNull,
     sync::{Arc, Mutex},
 };
 
-use core_foundation::{
-    array::{CFArray, CFArrayRef},
-    base::{CFTypeID, FromVoid, OSStatus, TCFType, ToVoid},
-    data::CFDataRef,
-    declare_TCFType,
-    dictionary::{CFDictionary, CFDictionaryRef},
-    impl_TCFType,
-    string::{CFString, CFStringRef},
-};
+use objc2::Message;
+use objc2_core_foundation::{CFArray, CFData, CFDictionary, CFString};
 use tracing::info;
 
 #[must_use]
@@ -38,8 +33,9 @@ impl InputSourceState {
 pub fn input_source() -> String {
     unsafe {
         let src = TISCopyCurrentKeyboardInputSource();
-        let src_id = TISGetInputSourceProperty(src, kTISPropertyInputSourceID) as CFStringRef;
-        CFString::wrap_under_get_rule(src_id).to_string()
+        let src_id =
+            TISGetInputSourceProperty(src, kTISPropertyInputSourceID.as_ptr()) as *const CFString;
+        CFString::retain(src_id.as_ref().unwrap()).to_string()
     }
 }
 
@@ -50,41 +46,51 @@ pub fn set_input_source(id: &str) -> bool {
     }
     info!("restoring current input source to `{id}`");
     unsafe {
-        let filter = CFDictionary::from_CFType_pairs(&[(
-            CFString::from_void(kTISPropertyInputSourceID.cast()).clone(),
-            CFString::new(id),
-        )]);
-        let srcs = CFArray::<TISInputSource>::wrap_under_get_rule(TISCreateInputSourceList(
-            filter.to_untyped().to_void().cast(),
-            false,
-        ));
+        let filter = CFDictionary::from_slices(
+            &[kTISPropertyInputSourceID.as_ref()],
+            &[&*CFString::from_str(id)],
+        );
+        let srcs = CFArray::<TISInputSource>::retain(
+            TISCreateInputSourceList(&raw const *filter, false)
+                .as_ref()
+                .unwrap(),
+        );
         let Some(src) = srcs.get(0) else {
             return false;
         };
-        TISSelectInputSource(src.as_concrete_TypeRef());
+        TISSelectInputSource(&*src);
     }
     true
 }
 
-#[derive(Debug)]
-#[repr(transparent)]
-pub struct __TISInputSource(c_void);
-pub type TISInputSourceRef = *const __TISInputSource;
+#[repr(C)]
+pub struct TISInputSource {
+    inner: [u8; 0],
+    _p: UnsafeCell<PhantomData<(*const UnsafeCell<()>, PhantomPinned)>>,
+}
 
-declare_TCFType!(TISInputSource, TISInputSourceRef);
-impl_TCFType!(TISInputSource, TISInputSourceRef, TISInputSourceGetTypeID);
+objc2_core_foundation::cf_type! {
+    unsafe impl TISInputSource {}
+}
+objc2::cf_objc2_type! {
+    unsafe impl RefEncode<"__TISInputSource"> for TISInputSource {}
+}
+
+type OSStatus = i32;
 
 #[link(name = "Carbon", kind = "framework")]
 unsafe extern "C" {
-    fn TISInputSourceGetTypeID() -> CFTypeID;
-    fn TISCopyCurrentKeyboardInputSource() -> TISInputSourceRef;
-    fn TISGetInputSourceProperty(source: TISInputSourceRef, propertyKey: CFStringRef) -> CFDataRef;
+    fn TISCopyCurrentKeyboardInputSource() -> *const TISInputSource;
+    fn TISGetInputSourceProperty(
+        source: *const TISInputSource,
+        propertyKey: *const CFString,
+    ) -> *const CFData;
     fn TISCreateInputSourceList(
-        properties: CFDictionaryRef,
+        properties: *const CFDictionary<CFString, CFString>,
         includeAllInstalled: bool,
-    ) -> CFArrayRef;
-    fn TISSelectInputSource(source: TISInputSourceRef) -> OSStatus;
+    ) -> *const CFArray<TISInputSource>;
+    fn TISSelectInputSource(source: *const TISInputSource) -> OSStatus;
 
-    static kTISPropertyInputSourceID: CFStringRef;
-    pub static kTISNotifySelectedKeyboardInputSourceChanged: CFStringRef;
+    static kTISPropertyInputSourceID: NonNull<CFString>;
+    pub static kTISNotifySelectedKeyboardInputSourceChanged: NonNull<String>;
 }
