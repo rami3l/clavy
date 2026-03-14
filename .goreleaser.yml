@@ -78,9 +78,7 @@ brews:
     test: |
       system "#{bin}/clavy --help"
 
-    # TODO: Use `auto` when we move out of prerelease.
-    # skip_upload: auto
-    skip_upload: false
+    skip_upload: auto
 
     # https://github.com/goreleaser/goreleaser/blob/a0f0d01a8143913cde72ebc1248abef089ae9b27/.goreleaser.yaml#L211
     repository:
