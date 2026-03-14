@@ -30,7 +30,7 @@ universal_binaries:
       post: codesign -dvvv --force --sign - {{ .Path }}
 
 archives:
-  - format: tar.gz
+  - formats: tar.gz
     # https://goreleaser.com/customization/archive/#packaging-only-the-binaries
     files:
       - none*
@@ -44,7 +44,7 @@ archives:
     format_overrides:
       # Use zip for windows archives
       - goos: windows
-        format: zip
+        formats: zip
 
 checksum:
   name_template: "checksums.txt"
