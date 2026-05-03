@@ -107,7 +107,15 @@ impl Clavy {
         let service = || Service::try_new(service::ID, detect_popup);
 
         match self.subcmd.unwrap_or_default() {
-            Subcmd::Launch => launch(detect_popup)?,
+            Subcmd::Launch => match launch(detect_popup) {
+                Ok(()) => (),
+                // HACK: Exit with code 0 if the error is [`AxPrivilegesNotDetected`] to avoid
+                // spamming macOS' accessibility permissions dialog. Since a certain release of
+                // macOS 26, the system will get very angry if we do it the old way. See:
+                // <https://github.com/karinushka/paneru/issues/154#issuecomment-4147607462>
+                Err(e @ Error::AxPrivilegesNotDetected) => warn!("{e}"),
+                Err(e) => return Err(e),
+            },
             Subcmd::Install => service()?.install()?,
             Subcmd::Uninstall => service()?.uninstall()?,
             Subcmd::Reinstall => service()?.reinstall()?,
