@@ -24,6 +24,12 @@ Thus, it can be considered ready for everyday use.
 brew install rami3l/tap/clavy
 ```
 
+### Installing with `nix`
+
+See the corresponding [nixpkgs page] for more information.
+
+[nixpkgs page]: https://search.nixos.org/packages?channel=unstable#show=clavy
+
 ### Building from source
 
 ```sh
