@@ -114,10 +114,12 @@ impl Run for Clavy {
         match self.subcmd.unwrap_or_default() {
             Subcmd::Launch => match launch(detect_popup) {
                 Ok(()) => (),
-                // HACK: Exit with code 0 if the error is [`AxPrivilegesNotDetected`] to avoid
-                // spamming macOS' accessibility permissions dialog. Since a certain release of
-                // macOS 26, the system will get very angry if we do it the old way. See:
-                // <https://github.com/karinushka/paneru/issues/154#issuecomment-4147607462>
+                // HACK: Exit with code 0 if the error is
+                // [`AxPrivilegesNotDetected`] to avoid spamming macOS'
+                // accessibility permissions dialog. Since a certain release of
+                // macOS 26, the system will get very angry if we do it the old
+                // way.
+                // See: <https://github.com/karinushka/paneru/issues/154#issuecomment-4147607462>
                 Err(e @ Error::AxPrivilegesNotDetected) => warn!("{e}"),
                 Err(e) => return Err(e),
             },
@@ -229,7 +231,8 @@ fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()
                 event!(
                     NOTIF_NAME_LVL,
                     "detected activation of app `{curr_app}` via `{notif}`",
-                    // Unwrapping is safe here because we only send `Some()` with this level.
+                    // Unwrapping is safe here because we only send `Some()`
+                    // with this level.
                     notif = notif.unwrap()
                 );
                 if let Some(old_src) = input_source_state.load(&curr_app)

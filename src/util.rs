@@ -125,10 +125,10 @@ pub fn bundle_id_from_current_app() -> Option<Retained<NSString>> {
         Ok(pid) => bundle_id_from_pid(pid),
         Err(e) => {
             debug!("failed to get current app PID, falling back to frontmost app PID: {e:?}");
-            // HACK: I don't know why I am doing this, but this seems to work 90% of the
-            // time.
-            // TODO: What happens when `getCurrentAppPID()` fails and we fall back to this
-            // one, but the frontmost app is NOT the current app?
+            // HACK: I don't know why I am doing this, but this seems to work
+            // 90% of the time.
+            // TODO: What happens when `getCurrentAppPID()` fails and we fall
+            // back to this one, but the frontmost app is NOT the current app?
             bundle_id_from_frontmost_app()
         }
     }
