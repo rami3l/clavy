@@ -8,16 +8,9 @@ use std::{
     ptr::{self, NonNull},
 };
 
-use accessibility_sys::{
-    AXObserverAddNotification, AXObserverCreate, AXObserverGetRunLoopSource, AXObserverRef,
-    AXObserverRemoveNotification, AXUIElementCreateApplication, AXUIElementRef,
-};
-use core_foundation::{
-    base::{CFRelease, TCFType, ToVoid},
-    runloop,
-    string::{CFString, CFStringRef},
-};
 use libc::pid_t;
+use objc2_application_services::{AXObserver, AXUIElement};
+use objc2_core_foundation::{CFRetained, CFRunLoop, CFString, kCFRunLoopDefaultMode};
 use tracing::debug;
 
 use crate::error::AccessibilityError;
@@ -32,8 +25,8 @@ pub type OnNotifFn = Box<dyn Fn(&WindowObserver, Cow<'_, str>)>;
 // https://juejin.cn/post/6919716600543182855
 pub struct WindowObserver {
     pid: pid_t,
-    elem: AXUIElementRef,
-    raw: AXObserverRef,
+    elem: CFRetained<AXUIElement>,
+    raw: CFRetained<AXObserver>,
     pub on_notif: OnNotifFn,
 }
 
@@ -48,12 +41,6 @@ impl fmt::Debug for WindowObserver {
     }
 }
 
-unsafe impl ToVoid<Self> for WindowObserver {
-    fn to_void(&self) -> *const c_void {
-        ptr::from_ref(self).cast()
-    }
-}
-
 impl WindowObserver {
     #[must_use]
     pub const fn pid(&self) -> pid_t {
@@ -61,10 +48,10 @@ impl WindowObserver {
     }
 
     pub fn try_new(pid: pid_t, on_notif: OnNotifFn) -> Result<Pin<Box<Self>>, AccessibilityError> {
-        unsafe extern "C" fn callback(
-            _: AXObserverRef,
-            _: AXUIElementRef,
-            notif: CFStringRef,
+        unsafe extern "C-unwind" fn callback(
+            _: NonNull<AXObserver>,
+            _: NonNull<AXUIElement>,
+            notif: NonNull<CFString>,
             refcon: *mut c_void,
         ) {
             let Some(self_) = NonNull::new(refcon.cast()) else {
@@ -72,69 +59,60 @@ impl WindowObserver {
             };
             let self_: &WindowObserver = unsafe { self_.as_ref() };
             let pid = self_.pid();
-            let notif = unsafe { CFString::wrap_under_get_rule(notif) };
+            let notif = unsafe { notif.as_ref() }.to_string();
             debug!("received `{notif}` from PID {pid}");
-            (self_.on_notif)(self_, Cow::from(&notif));
+            (self_.on_notif)(self_, Cow::Owned(notif));
         }
 
         let mut raw = ptr::null_mut();
-        unsafe {
-            AccessibilityError::wrap(AXObserverCreate(pid, callback, &raw mut raw))?;
-        }
+        AccessibilityError::wrap(unsafe {
+            AXObserver::create(pid, Some(callback), NonNull::from(&mut raw))
+        })?;
+        let raw = NonNull::new(raw).ok_or(AccessibilityError::Failure)?;
         Ok(Box::pin(Self {
             pid,
             on_notif,
-            raw,
-            elem: unsafe { AXUIElementCreateApplication(pid) },
+            raw: unsafe { CFRetained::from_raw(raw) },
+            elem: unsafe { AXUIElement::new_application(pid) },
         }))
     }
 
     pub fn subscribe(mut self: Pin<&mut Self>, notif: &str) -> Result<(), AccessibilityError> {
+        let refcon = (&raw mut *self).cast();
         AccessibilityError::wrap(unsafe {
-            AXObserverAddNotification(
-                self.raw,
-                self.elem,
-                CFString::new(notif).to_void().cast(),
-                (&raw mut *self).cast(),
-            )
+            self.raw
+                .add_notification(&self.elem, &CFString::from_str(notif), refcon)
         })
     }
 
     pub fn unsubscribe(&self, notif: &str) -> Result<(), AccessibilityError> {
         AccessibilityError::wrap(unsafe {
-            AXObserverRemoveNotification(self.raw, self.elem, CFString::new(notif).to_void().cast())
+            self.raw
+                .remove_notification(&self.elem, &CFString::from_str(notif))
         })
     }
 
     pub fn start(&mut self) {
-        unsafe {
-            runloop::CFRunLoopAddSource(
-                runloop::CFRunLoopGetCurrent(),
-                AXObserverGetRunLoopSource(self.raw),
-                runloop::kCFRunLoopDefaultMode,
-            );
+        let Some(run_loop) = CFRunLoop::current() else {
+            return;
         };
+        run_loop.add_source(Some(&*unsafe { self.raw.run_loop_source() }), unsafe {
+            kCFRunLoopDefaultMode
+        });
     }
 
     pub fn stop(&self) {
-        if self.raw.is_null() {
+        let Some(run_loop) = CFRunLoop::current() else {
             return;
-        }
-        unsafe {
-            runloop::CFRunLoopRemoveSource(
-                runloop::CFRunLoopGetCurrent(),
-                AXObserverGetRunLoopSource(self.raw),
-                runloop::kCFRunLoopDefaultMode,
-            );
-        }
+        };
+        run_loop.remove_source(Some(&*unsafe { self.raw.run_loop_source() }), unsafe {
+            kCFRunLoopDefaultMode
+        });
     }
 }
 
 impl Drop for WindowObserver {
     fn drop(&mut self) {
         self.stop();
-        unsafe {
-            CFRelease(self.raw.cast());
-        }
     }
 }

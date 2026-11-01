@@ -21,10 +21,10 @@ use clavy::{
         has_ax_privileges,
     },
 };
-use core_foundation::runloop::CFRunLoopRun;
 use libc::pid_t;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSWorkspace, NSWorkspaceDidActivateApplicationNotification};
+use objc2_core_foundation::CFRunLoop;
 use objc2_foundation::{NSDistributedNotificationCenter, NSNotification, NSNumber, NSString};
 use smol::channel;
 use tracing::{Level, debug, event, event_enabled, info, warn};
@@ -240,7 +240,10 @@ fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()
                 {
                     continue;
                 }
-                let new_src = input_source();
+                let Some(new_src) = input_source() else {
+                    warn!("failed to get current input source for `{curr_app}`");
+                    continue;
+                };
                 debug!("registering input source for `{curr_app}` as `{new_src}`");
                 input_source_state.save(curr_app, new_src);
             }
@@ -251,11 +254,15 @@ fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()
     let _curr_input_source_observer = unsafe {
         NotificationObserver::new(
             Retained::cast_unchecked(NSDistributedNotificationCenter::defaultCenter()),
-            &*kTISNotifySelectedKeyboardInputSourceChanged.cast(),
+            kTISNotifySelectedKeyboardInputSourceChanged.as_ref(),
             move |_| {
                 smol::spawn({
                     let tx = input_source_tx.clone();
-                    async move { tx.send(input_source()).await.unwrap() }
+                    let Some(src) = input_source() else {
+                        warn!("failed to get current input source after change");
+                        return;
+                    };
+                    async move { tx.send(src).await.unwrap() }
                 })
                 .detach();
             },
@@ -279,6 +286,6 @@ fn launch<S: AsRef<str>>(detect_popup: impl IntoIterator<Item = S>) -> Result<()
     })
     .detach();
 
-    unsafe { CFRunLoopRun() };
+    CFRunLoop::run();
     Ok(())
 }
