@@ -73,8 +73,8 @@ impl WorkspaceObserver {
     const EXCLUDED_APP_IDS: [&str; 4] = [
         "com.apple.dock",
         "com.apple.universalcontrol",
-        // HACK: When hiding some system apps, `AXApplicationHidden` is not sent.
-        // We exclude these apps from the observation for now.
+        // HACK: When hiding some system apps, `AXApplicationHidden` is not
+        // sent. We exclude these apps from the observation for now.
         // See: https://github.com/rami3l/clavy/issues/3
         "com.apple.controlcenter",
         "com.apple.notificationcenterui",
