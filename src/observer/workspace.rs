@@ -30,7 +30,10 @@ use crate::{
         },
         window::WindowObserver,
     },
-    util::{AX_APPLICATION_HIDDEN_NOTIFICATION, AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION},
+    util::{
+        AX_APPLICATION_HIDDEN_NOTIFICATION, AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION,
+        AX_WINDOW_RESIZED_NOTIFICATION,
+    },
 };
 
 #[derive(Debug)]
@@ -85,7 +88,8 @@ impl WorkspaceObserver {
     ];
     /// A list of known Spotlight-like apps that only show a popup window.
     /// See: <https://github.com/runjuu/InputSourcePro/blob/3ce832f1fb3b96a8cd6619b5868d55be38c5ca9f/Input%20Source%20Pro/Utilities/AppKit/NSApplication.swift#L5-L23>
-    const KNOWN_POPUP_ONLY_APP_IDS: [&str; 12] = [
+    const KNOWN_POPUP_ONLY_APP_IDS: [&str; 13] = [
+        "com.apple.campo",
         "com.apple.Spotlight",
         "com.runningwithcrayons.Alfred",
         "at.obdev.LaunchBar",
@@ -174,7 +178,9 @@ impl WorkspaceObserver {
                         AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION => {
                             FOCUSED_WINDOW_CHANGED_NOTIFICATION
                         }
-                        AX_APPLICATION_HIDDEN_NOTIFICATION => APP_HIDDEN_NOTIFICATION,
+                        AX_APPLICATION_HIDDEN_NOTIFICATION | AX_WINDOW_RESIZED_NOTIFICATION => {
+                            APP_HIDDEN_NOTIFICATION
+                        }
                         notif => {
                             debug!("unexpected notification `{notif}` detected");
                             return;
@@ -192,6 +198,7 @@ impl WorkspaceObserver {
                 new.as_mut()
                     .subscribe(AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION)?;
                 new.as_mut().subscribe(AX_APPLICATION_HIDDEN_NOTIFICATION)?;
+                new.as_mut().subscribe(AX_WINDOW_RESIZED_NOTIFICATION)?;
                 new.start();
                 children.insert(*pid, new);
                 Ok(())

@@ -20,8 +20,9 @@ use crate::error::AccessibilityError;
 // HACK: `kAX*` strings are not exported by `objc2-application-services`, so we
 // manually write them out here.
 pub const AX_APPLICATION_HIDDEN_NOTIFICATION: &str = "AXApplicationHidden";
-const AX_FOCUSED_APPLICATION_ATTRIBUTE: &str = "AXFocusedApplication";
 pub const AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION: &str = "AXFocusedWindowChanged";
+pub const AX_WINDOW_RESIZED_NOTIFICATION: &str = "AXWindowResized";
+const AX_FOCUSED_APPLICATION_ATTRIBUTE: &str = "AXFocusedApplication";
 
 /// Returns the path of the current executable.
 #[must_use]
