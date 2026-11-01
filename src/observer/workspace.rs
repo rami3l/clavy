@@ -6,11 +6,6 @@ use std::{
     sync::{Mutex, OnceLock},
 };
 
-use accessibility_sys::{kAXApplicationHiddenNotification, kAXFocusedWindowChangedNotification};
-use core_foundation::{base::FromVoid, dictionary::CFDictionary, number::CFNumber};
-use core_graphics::window::{
-    copy_window_info, kCGNullWindowID, kCGWindowListOptionAll, kCGWindowOwnerPID,
-};
 use libc::pid_t;
 use objc2::{
     AllocAnyThread, DeclaredClass, define_class, msg_send,
@@ -18,15 +13,24 @@ use objc2::{
     runtime::AnyObject,
 };
 use objc2_app_kit::{NSRunningApplication, NSWorkspace};
+use objc2_core_foundation::{CFDictionary, CFNumber, CFString};
+use objc2_core_graphics::{
+    CGWindowListCopyWindowInfo, CGWindowListOption, kCGNullWindowID, kCGWindowOwnerPID,
+};
 use objc2_foundation::{
     NSDictionary, NSKeyValueChangeKey, NSKeyValueObservingOptions, NSNotificationName, NSNumber,
     NSObject, NSObjectNSKeyValueObserverRegistration, NSString, ns_string,
 };
 use tracing::{debug, trace, warn};
 
-use super::window::WindowObserver;
-use crate::observer::notification::{
-    APP_HIDDEN_NOTIFICATION, FOCUSED_WINDOW_CHANGED_NOTIFICATION, LOCAL_NOTIFICATION_CENTER,
+use crate::{
+    observer::{
+        notification::{
+            APP_HIDDEN_NOTIFICATION, FOCUSED_WINDOW_CHANGED_NOTIFICATION, LOCAL_NOTIFICATION_CENTER,
+        },
+        window::WindowObserver,
+    },
+    util::{AX_APPLICATION_HIDDEN_NOTIFICATION, AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION},
 };
 
 #[derive(Debug)]
@@ -166,10 +170,11 @@ impl WorkspaceObserver {
             _ = WindowObserver::try_new(
                 *pid,
                 Box::new(|obs, notif| {
-                    #[allow(non_upper_case_globals)]
                     let name = match notif.as_ref() {
-                        kAXFocusedWindowChangedNotification => FOCUSED_WINDOW_CHANGED_NOTIFICATION,
-                        kAXApplicationHiddenNotification => APP_HIDDEN_NOTIFICATION,
+                        AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION => {
+                            FOCUSED_WINDOW_CHANGED_NOTIFICATION
+                        }
+                        AX_APPLICATION_HIDDEN_NOTIFICATION => APP_HIDDEN_NOTIFICATION,
                         notif => {
                             debug!("unexpected notification `{notif}` detected");
                             return;
@@ -185,8 +190,8 @@ impl WorkspaceObserver {
             )
             .and_then(|mut new| {
                 new.as_mut()
-                    .subscribe(kAXFocusedWindowChangedNotification)?;
-                new.as_mut().subscribe(kAXApplicationHiddenNotification)?;
+                    .subscribe(AX_FOCUSED_WINDOW_CHANGED_NOTIFICATION)?;
+                new.as_mut().subscribe(AX_APPLICATION_HIDDEN_NOTIFICATION)?;
                 new.start();
                 children.insert(*pid, new);
                 Ok(())
@@ -203,15 +208,15 @@ impl WorkspaceObserver {
         // https://apple.stackexchange.com/a/317705
         // https://gist.github.com/ljos/3040846
         // https://stackoverflow.com/a/61688877
-        let window_info = copy_window_info(kCGWindowListOptionAll, kCGNullWindowID)
-            .expect("failed to copy window info");
+        let window_info =
+            CGWindowListCopyWindowInfo(CGWindowListOption::OptionAll, kCGNullWindowID)
+                .expect("failed to copy window info");
+        let window_info =
+            unsafe { window_info.cast_unchecked::<CFDictionary<CFString, CFNumber>>() };
 
         let windowed_pids: HashSet<pid_t> = window_info
             .iter()
-            .filter_map(|d| unsafe {
-                let d = CFDictionary::from_void(*d);
-                CFNumber::from_void(*d.find(kCGWindowOwnerPID)?).to_i32()
-            })
+            .filter_map(|d| d.get(unsafe { kCGWindowOwnerPID })?.as_i32())
             .collect();
 
         running_apps
