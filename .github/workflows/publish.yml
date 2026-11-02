@@ -51,12 +51,13 @@ jobs:
 
       - name: Build
         run: |
-          mkdir -p target/gh-artifacts/
+          mkdir -p target/gh-artifacts/clavy_${{ matrix.alias }}/
           cargo build --verbose --bin=clavy --release --locked --target=${{ matrix.target }}
-          mv -f target/${{ matrix.target }}/release/ target/gh-artifacts/clavy_${{ matrix.alias }}/
+          cp -f target/${{ matrix.target }}/release/clavy target/gh-artifacts/clavy_${{ matrix.alias }}/
           echo '======='
+          mkdir -p target/gh-artifacts/clavy_${{ matrix.alias1 }}/
           cargo build --verbose --bin=clavy --release --locked --target=${{ matrix.target1 }}
-          mv -f target/${{ matrix.target1 }}/release/ target/gh-artifacts/clavy_${{ matrix.alias1 }}/
+          cp -f target/${{ matrix.target1 }}/release/clavy target/gh-artifacts/clavy_${{ matrix.alias1 }}/
           echo '======='
           ls -laR target/gh-artifacts
 
